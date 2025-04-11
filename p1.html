@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>월별 행사 달력</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            padding: 10px;
+            max-width: 100%;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .title {
+            font-size: 20px;
+            font-weight: bold;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 8px;
+        }
+        
+        button, select {
+            padding: 6px 10px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        button {
+            background-color: #4285f4;
+            color: white;
+            cursor: pointer;
+        }
+        
+        select {
+            background-color: white;
+            border: 1px solid #ddd;
+        }
+        
+        /* 달력 스타일 */
+        .calendar {
+            background-color: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            width: 100%;
+        }
+        
+        .calendar-header {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            background-color: #f0f0f0;
+            width: 100%;
+        }
+        
+        .day-header {
+            padding: 8px 0;
+            text-align: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .weekend {
+            color: #f44336;
+        }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            grid-auto-rows: minmax(auto, auto);
+            font-size: 12px;
+            width: 100%;
+        }
+        
+        .date-cell {
+            border: 1px solid #e0e0e0;
+            min-height: 40px;
+            padding: 5px;
+            position: relative;
+        }
+        
+        .date-number {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .today {
+            background-color: #fffde7;
+        }
+        
+        .other-month {
+            color: #bbb;
+            background-color: #f9f9f9;
+        }
+        
+        .weekend-cell {
+            color: #f44336;
+        }
+        
+        .event {
+            margin: 2px 0;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-size: 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+            background-color: #e1f5fe;
+            border: 1px solid #81d4fa;
+        }
+        
+        .event.performance {
+            background-color: #ffecb3;
+            border-color: #ffd54f;
+        }
+        
+        .event.exhibition {
+            background-color: #e1f5fe;
+            border-color: #81d4fa;
+        }
+        
+        .event.experience {
+            background-color: #e8f5e9;
+            border-color: #a5d6a7;
+        }
+        
+        .event.other {
+            background-color: #f3e5f5;
+            border-color: #ce93d8;
+        }
+        
+        /* 모달 스타일 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            position: relative;
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            width: 85%;
+            max-width: 500px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .event-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            padding-right: 20px;
+        }
+        
+        .event-detail {
+            margin-bottom: 8px;
+        }
+        
+        .event-label {
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        
+        /* 상태 표시줄 */
+        .status {
+            margin-top: 10px;
+            padding: 8px;
+            border-radius: 4px;
+            background-color: #f1f1f1;
+            font-size: 12px;
+        }
+        
+        /* 추가 이벤트 버튼 */
+        .more-events {
+            text-align: center;
+            font-size: 10px;
+            padding: 2px;
+            background-color: #f1f1f1;
+            border-radius: 3px;
+            margin-top: 2px;
+            cursor: pointer;
+        }
+
+        /* 미디어 쿼리 - 모바일 최적화 */
+        @media (max-width: 480px) {
+            .date-cell {
+                min-height: 30px;
+                padding: 2px;
+            }
+            
+            .date-number {
+                font-size: 11px;
+                margin-bottom: 2px;
+            }
+            
+            .event {
+                font-size: 9px;
+                padding: 1px 2px;
+                margin: 1px 0;
+            }
+            
+            .more-events {
+                font-size: 8px;
+                padding: 1px;
+            }
+            
+            .day-header {
+                padding: 4px 0;
+                font-size: 12px;
+            }
+            
+            .modal-content {
+                margin: 20% auto;
+                padding: 15px;
+            }
+            
+            .event-title {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title">월별 행사 달력</div>
+            <div class="controls">
+                <button id="refreshBtn">새로고침</button>
+                <select id="yearSelect"></select>
+                <select id="monthSelect"></select>
+            </div>
+        </div>
+        
+        <div class="calendar">
+            <div class="calendar-header">
+                <div class="day-header">월</div>
+                <div class="day-header">화</div>
+                <div class="day-header">수</div>
+                <div class="day-header">목</div>
+                <div class="day-header">금</div>
+                <div class="day-header weekend">토</div>
+                <div class="day-header weekend">일</div>
+            </div>
+            <div id="calendarGrid" class="calendar-grid"></div>
+        </div>
+        
+        <div class="status" id="statusBar">행사 데이터를 준비하는 중...</div>
+    </div>
+    
+    <!-- 이벤트 상세 정보 모달 -->
+    <div id="eventModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div class="event-title" id="eventTitle"></div>
+            <div id="eventDetails"></div>
+        </div>
+    </div>
+    
+    <script>
+        // 전역 변수
+        let eventsData = [];
+        const today = new Date();
+        let currentYear = today.getFullYear();
+        let currentMonth = today.getMonth(); // 0-11
+        
+        // DOM 요소
+        const calendarGrid = document.getElementById('calendarGrid');
+        const yearSelect = document.getElementById('yearSelect');
+        const monthSelect = document.getElementById('monthSelect');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const statusBar = document.getElementById('statusBar');
+        const eventModal = document.getElementById('eventModal');
+        const eventTitle = document.getElementById('eventTitle');
+        const eventDetails = document.getElementById('eventDetails');
+        const modalClose = document.querySelector('.close');
+        
+        // 년/월 선택 초기화
+        function initializeControls() {
+            // 년도 옵션 (현재 년도 ±5년)
+            for (let y = currentYear - 5; y <= currentYear + 5; y++) {
+                const option = document.createElement('option');
+                option.value = y;
+                option.textContent = `${y}년`;
+                if (y === currentYear) option.selected = true;
+                yearSelect.appendChild(option);
+            }
+            
+            // 월 옵션
+            for (let m = 0; m < 12; m++) {
+                const option = document.createElement('option');
+                option.value = m;
+                option.textContent = `${m + 1}월`;
+                if (m === currentMonth) option.selected = true;
+                monthSelect.appendChild(option);
+            }
+            
+            // 이벤트 리스너
+            yearSelect.addEventListener('change', updateCalendar);
+            monthSelect.addEventListener('change', updateCalendar);
+            refreshBtn.addEventListener('click', loadData);
+            modalClose.addEventListener('click', () => eventModal.style.display = 'none');
+            
+            // 모달 외부 클릭 시 닫기
+            window.addEventListener('click', (event) => {
+                if (event.target === eventModal) {
+                    eventModal.style.display = 'none';
+                }
+            });
+        }
+        
+        // 달력 업데이트
+        function updateCalendar() {
+            currentYear = parseInt(yearSelect.value);
+            currentMonth = parseInt(monthSelect.value);
+            
+            const firstDay = new Date(currentYear, currentMonth, 1);
+            const lastDay = new Date(currentYear, currentMonth + 1, 0);
+            const daysInMonth = lastDay.getDate();
+            
+            // 1일의 요일 (0: 일요일, 6: 토요일)
+            let firstDayOfWeek = firstDay.getDay();
+            // 월요일을 시작으로 조정 (0: 월요일, 6: 일요일)
+            firstDayOfWeek = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
+            
+            // 그리드 초기화
+            calendarGrid.innerHTML = '';
+            
+            // 이전 달의 날짜 채우기
+            const prevMonthLastDay = new Date(currentYear, currentMonth, 0).getDate();
+            for (let i = 0; i < firstDayOfWeek; i++) {
+                const dayFromPrevMonth = prevMonthLastDay - firstDayOfWeek + i + 1;
+                const prevDate = new Date(currentYear, currentMonth-1, dayFromPrevMonth);
+                const dateCell = createDateCell(prevDate, true);
+                calendarGrid.appendChild(dateCell);
+            }
+            
+            // 현재 달 날짜 채우기
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(currentYear, currentMonth, day);
+                const dateCell = createDateCell(date, false);
+                calendarGrid.appendChild(dateCell);
+            }
+            
+            // 다음 달 날짜로 나머지 채우기
+            const totalCellsCreated = firstDayOfWeek + daysInMonth;
+            const nextMonthDays = Math.ceil(totalCellsCreated / 7) * 7 - totalCellsCreated;
+            
+            for (let day = 1; day <= nextMonthDays; day++) {
+                const nextDate = new Date(currentYear, currentMonth+1, day);
+                const dateCell = createDateCell(nextDate, true);
+                calendarGrid.appendChild(dateCell);
+            }
+            
+            // 셀 높이 조정
+            adjustCellHeight();
+        }
+        
+        // 화면 크기에 맞게 셀 높이 자동 조정
+        function adjustCellHeight() {
+            const dateCells = document.querySelectorAll('.date-cell');
+            let cellHeight = '30px';
+            
+            // 화면 크기에 따라 높이 조정
+            const screenWidth = window.innerWidth;
+            
+            if (screenWidth < 360) {
+                cellHeight = '25px';
+            } else if (screenWidth < 480) {
+                cellHeight = '30px';
+            } else if (screenWidth < 768) {
+                cellHeight = '40px';
+            } else {
+                cellHeight = '60px';
+            }
+            
+            dateCells.forEach(cell => {
+                cell.style.minHeight = cellHeight;
+            });
+        }
+        
+        // 날짜 셀 생성
+        function createDateCell(date, isOtherMonth) {
+            const cell = document.createElement('div');
+            cell.className = 'date-cell';
+            
+            if (isOtherMonth) {
+                cell.classList.add('other-month');
+            }
+            
+            // 주말 스타일 적용
+            const dayOfWeek = date.getDay();
+            if (dayOfWeek === 0 || dayOfWeek === 6) {
+                cell.classList.add('weekend-cell');
+            }
+            
+            // 오늘 날짜 강조
+            if (date.getDate() === today.getDate() && 
+                date.getMonth() === today.getMonth() && 
+                date.getFullYear() === today.getFullYear()) {
+                cell.classList.add('today');
+            }
+            
+            // 날짜 번호 표시
+            const dateNumber = document.createElement('div');
+            dateNumber.className = 'date-number';
+            dateNumber.textContent = date.getDate();
+            cell.appendChild(dateNumber);
+            
+            // 해당 날짜의 이벤트 표시 (최대 2개까지만 표시)
+            if (!isOtherMonth && eventsData.length > 0) {
+                const events = getEventsForDate(date);
+                const maxDisplay = 2; // 모바일에서는 최대 2개만 표시
+                
+                const displayEvents = events.slice(0, maxDisplay);
+                displayEvents.forEach(event => {
+                    const eventElement = document.createElement('div');
+                    eventElement.className = `event ${event.eventType}`;
+                    
+                    // 짧게 표시
+                    let title = event['행사제목'];
+                    if (title.length > 8) {
+                        title = title.substring(0, 6) + '..';
+                    }
+                    eventElement.textContent = title;
+                    
+                    eventElement.addEventListener('click', () => {
+                        showEventDetails(event);
+                    });
+                    
+                    cell.appendChild(eventElement);
+                });
+                
+                // 추가 이벤트가 있음을 표시
+                if (events.length > maxDisplay) {
+                    const moreElement = document.createElement('div');
+                    moreElement.className = 'more-events';
+                    moreElement.textContent = `+${events.length - maxDisplay}개 더보기`;
+                    moreElement.addEventListener('click', () => {
+                        showDateEvents(date, events);
+                    });
+                    cell.appendChild(moreElement);
+                }
+            }
+            
+            return cell;
+        }
+        
+        // 특정 날짜의 이벤트 가져오기
+        function getEventsForDate(date) {
+            return eventsData.filter(event => {
+                if (!event.startDate || !event.endDate) return false;
+                
+                const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+                const compareStartDate = new Date(event.startDate.getFullYear(), event.startDate.getMonth(), event.startDate.getDate());
+                const compareEndDate = new Date(event.endDate.getFullYear(), event.endDate.getMonth(), event.endDate.getDate());
+                
+                return compareDate >= compareStartDate && compareDate <= compareEndDate;
+            });
+        }
+        
+        // 특정 날짜의 모든 이벤트 표시
+        function showDateEvents(date, events) {
+            eventTitle.textContent = `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일 행사`;
+            
+            let detailsHTML = '';
+            
+            if (events.length === 0) {
+                detailsHTML = '<div class="event-detail">이 날짜에 등록된 행사가 없습니다.</div>';
+            } else {
+                events.forEach(event => {
+                    let typeClass = '';
+                    switch(event.eventType) {
+                        case 'performance': typeClass = 'background-color: #ffecb3;'; break;
+                        case 'exhibition': typeClass = 'background-color: #e1f5fe;'; break;
+                        case 'experience': typeClass = 'background-color: #e8f5e9;'; break;
+                        case 'other': typeClass = 'background-color: #f3e5f5;'; break;
+                    }
+                    
+                    detailsHTML += `
+                    <div style="margin-bottom: 10px; padding: 8px; border-radius: 4px; ${typeClass}">
+                        <div style="font-weight: bold; margin-bottom: 5px;">${event['행사제목']}</div>
+                        <div style="font-size: 11px;">
+                            ${event['장소'] ? `<div>장소: ${event['장소']}</div>` : ''}
+                            ${event['유형'] ? `<div>유형: ${event['유형']}</div>` : ''}
+                        </div>
+                        <div style="text-align: right; margin-top: 5px;">
+                            <button onclick="showEventDetails(eventsData.find(e => e.id === ${event.id}))" 
+                                    style="padding: 3px 6px; font-size: 11px; background-color: #4285f4; color: white; border: none; border-radius: 3px;">
+                                상세보기
+                            </button>
+                        </div>
+                    </div>
+                    `;
+                });
+            }
+            
+            eventDetails.innerHTML = detailsHTML;
+            eventModal.style.display = 'block';
+        }
+        
+        // 이벤트 상세 정보 표시
+        function showEventDetails(event) {
+            eventTitle.textContent = event['행사제목'];
+            
+            let detailsHTML = '';
+            
+            // 날짜 정보
+            if (event.startDate) {
+                const startDateStr = formatDate(event.startDate);
+                const endDateStr = formatDate(event.endDate);
+                
+                if (startDateStr === endDateStr) {
+                    detailsHTML += `<div class="event-detail"><span class="event-label">날짜:</span> ${startDateStr}</div>`;
+                } else {
+                    detailsHTML += `<div class="event-detail"><span class="event-label">기간:</span> ${startDateStr} ~ ${endDateStr}</div>`;
+                }
+            }
+            
+            // 시간 정보
+            if (event['시작시간'] || event['종료시간']) {
+                const timeInfo = [];
+                if (event['시작시간']) timeInfo.push(event['시작시간']);
+                if (event['종료시간']) timeInfo.push(event['종료시간']);
+                
+                detailsHTML += `<div class="event-detail"><span class="event-label">시간:</span> ${timeInfo.join(' ~ ')}</div>`;
+            }
+            
+            // 기타 정보
+            const additionalFields = [
+                { field: '장소', label: '장소' },
+                { field: '유형', label: '유형' },
+                { field: '대상', label: '대상' },
+                { field: '기관', label: '주관' },
+                { field: '연락처', label: '연락처' },
+                { field: '행사내용', label: '내용' }
+            ];
+            
+            for (const { field, label } of additionalFields) {
+                if (event[field] && event[field].trim() !== '') {
+                    detailsHTML += `<div class="event-detail"><span class="event-label">${label}:</span> ${event[field]}</div>`;
+                }
+            }
+            
+            eventDetails.innerHTML = detailsHTML;
+            eventModal.style.display = 'block';
+        }
+        
+        // 날짜 포맷팅 (YYYY-MM-DD)
+        function formatDate(date) {
+            if (!date) return '';
+            
+            if (!(date instanceof Date)) {
+                date = new Date(date);
+            }
+            
+            if (isNaN(date.getTime())) return '';
+            
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            
+            return `${year}-${month}-${day}`;
+        }
+        
+        // 날짜 파싱 함수
+        function parseDate(dateStr) {
+            if (!dateStr) return null;
+            
+            // 날짜 문자열을 Date 객체로 변환
+            const parsedDate = new Date(dateStr);
+            if (!isNaN(parsedDate.getTime())) {
+                return parsedDate;
+            }
+            
+            // YYYY-MM-DD 형식으로 파싱 시도
+            const matches = dateStr.match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
+            if (matches) {
+                return new Date(matches[1], matches[2] - 1, matches[3]);
+            }
+            
+            return null;
+        }
+        
+        // 데이터 로드 함수
+        function loadData() {
+            // 상태 업데이트
+            statusBar.textContent = '데이터를 로드 중입니다...';
+            
+            // 샘플 데이터 로드 (실제 환경에서는 서버나 파일에서 데이터를 가져올 수 있음)
+            const sampleData = [
+                {
+                    id: 1,
+                    '행사제목': '도서관주간 행사',
+                    '시작날짜': new Date(2025, 3, 1),
+                    '종료날짜': new Date(2025, 3, 15),
+                    '장소': '시립 도서관',
+                    '유형': '체험',
+                    '행사내용': '도서관주간 기념 행사입니다.',
+                    '기관': '교육청',
+                    '연락처': '02-123-4567',
+                    'eventType': 'experience',
+                    'startDate': new Date(2025, 3, 1),
+                    'endDate': new Date(2025, 3, 15)
+                },
+                {
+                    id: 2,
+                    '행사제목': '그래비티랩스 1',
+                    '시작날짜': new Date(2025, 3, 7),
+                    '종료날짜': new Date(2025, 3, 7),
+                    '장소': '중앙 공원',
+                    '유형': '공연',
+                    '행사내용': '그래비티랩스 활동입니다.',
+                    '기관': '문화진흥원',
+                    '연락처': '02-234-5678',
+                    'eventType': 'performance',
+                    'startDate': new Date(2025, 3, 7),
+                    'endDate': new Date(2025, 3, 7)
+                },
+                {
+                    id: 3,
+                    '행사제목': '여행 다이어리 시작하기',
+                    '시작날짜': new Date(2025, 3, 8),
+                    '종료날짜': new Date(2025, 3, 8),
+                    '장소': '문화센터',
+                    '유형': '전시',
+                    '행사내용': '여행 다이어리 작성법을 배우는 워크샵입니다.',
+                    '기관': '예술협회',
+                    '연락처': '02-345-6789',
+                    'eventType': 'exhibition',
+                    'startDate': new Date(2025, 3, 8),
+                    'endDate': new Date(2025, 3, 8)
+                },
+                {
+                    id: 4,
+                    '행사제목': '집시여인 이지현과 플라멩코밴드공연',
+                    '시작날짜': new Date(2025, 3, 14),
+                    '종료날짜': new Date(2025, 3, 14),
+                    '장소': '시민 광장',
+                    '유형': '공연',
+                    '행사내용': '플라멩코 댄스와 함께하는 공연입니다.',
+                    '기관': '시청',
+                    '연락처': '02-456-7890',
+                    'eventType': 'performance',
+                    'startDate': new Date(2025, 3, 14),
+                    'endDate': new Date(2025, 3, 14)
+                },
+                {
+                    id: 5,
+                    '행사제목': '드림파크 벚꽃축제',
+                    '시작날짜': new Date(2025, 3, 14),
+                    '종료날짜': new Date(2025, 3, 15),
+                    '장소': '드림파크',
+                    '유형': '기타',
+                    '행사내용': '봄맞이 벚꽃 축제입니다.',
+                    '기관': '공원관리사무소',
+                    '연락처': '02-567-8901',
+                    'eventType': 'other',
+                    'startDate': new Date(2025, 3, 14),
+                    'endDate': new Date(2025, 3, 15)
+                },
+                {
+                    id: 6,
+                    '행사제목': 'SAC ON SCREEN 2024',
+                    '시작날짜': new Date(2025, 3, 22),
+                    '종료날짜': new Date(2025, 3, 22),
+                    '장소': '문화회관',
+                    '유형': '공연',
+                    '행사내용': '예술의 전당 공연을 스크린으로 만나보세요.',
+                    '기관': '문화재단',
+                    '연락처': '02-678-9012',
+                    'eventType': 'performance',
+                    'startDate': new Date(2025, 3, 22),
+                    'endDate': new Date(2025, 3, 22)
+                },
+                {
+                    id: 7,
+                    '행사제목': '제55회 지구의 날 맞이 전국 소등행사',
+                    '시작날짜': new Date(2025, 3, 22),
+                    '종료날짜': new Date(2025, 3, 22),
+                    '장소': '전국',
+                    '유형': '체험',
+                    '행사내용': '지구의 날을 맞아 전국에서 진행되는 소등 행사입니다.',
+                    '기관': '환경부',
+                    '연락처': '02-789-0123',
+                    'eventType': 'experience',
+                    'startDate': new Date(2025, 3, 22),
+                    'endDate': new Date(2025, 3, 22)
+                }
+            ];
+            
+            eventsData = sampleData;
+            
+            // 상태 업데이트
+            statusBar.textContent = `데이터 로드 완료: 총 ${eventsData.length}개의 행사`;
+            
+            // 달력 업데이트
+            updateCalendar();
+        }
+        
+        // 전역 함수로 노출 (이벤트 핸들러에서 사용)
+        window.showEventDetails = showEventDetails;
+        
+        // 초기화 및 데이터 로드
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeControls();
+            loadData();
+            
+            // 화면 크기 변경 시 셀 높이 재조정
+            window.addEventListener('resize', adjustCellHeight);
+            
+            // 모바일 환경에서의 방향 전환 감지
+            window.addEventListener('orientationchange', () => {
+                setTimeout(adjustCellHeight, 100);
+            });
+        });
+    </script>
+</body>
+</html>
