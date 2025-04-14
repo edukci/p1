@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>월별 행사 달력</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <style>
+        body {
+            font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            border-radius: 5px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .month-selector {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+        select {
+            padding: 8px;
+            margin: 0 5px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        button {
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin: 0 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .calendar {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        .calendar th {
+            background-color: #f0f0f0;
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+        .calendar td {
+            border: 1px solid #ddd;
+            height: 120px;
+            vertical-align: top;
+            padding: 5px;
+            position: relative;
+            width: 14.28%;
+            overflow: hidden;
+        }
+        .date {
+            font-weight: bold;
+            margin-bottom: 5px;
+            text-align: right;
+        }
+        .event {
+            background-color: #e6f7ff;
+            border-radius: 3px;
+            padding: 3px 5px;
+            margin-bottom: 3px;
+            font-size: 0.9em;
+            cursor: pointer;
+            border-left: 3px solid #1890ff;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .event-container {
+            max-height: 90px;
+            overflow-y: auto;
+        }
+        .weekend {
+            background-color: #f9f9f9;
+        }
+        .sunday {
+            color: #e74c3c;
+        }
+        .saturday {
+            color: #3498db;
+        }
+        .today {
+            background-color: #ffffcc;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 5px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: black;
+        }
+        .event-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .event-detail {
+            margin-bottom: 5px;
+        }
+        .event-label {
+            font-weight: bold;
+            display: inline-block;
+            min-width: 80px;
+        }
+        .file-input {
+            display: none;
+        }
+        .file-label {
+            padding: 8px 15px;
+            background-color: #2196F3;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin: 5px 0;
+        }
+        .file-label:hover {
+            background-color: #0b7dda;
+        }
+        .empty-message {
+            text-align: center;
+            padding: 20px;
+            color: #999;
+            font-style: italic;
+        }
+        .more-indicator {
+            font-size: 0.8em;
+            color: #666;
+            text-align: center;
+        }
+        .stats {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f8f8f8;
+            border-radius: 4px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .event-type-공연 { border-left-color: #ff9800; background-color: #fff3e0; }
+        .event-type-전시 { border-left-color: #2196F3; background-color: #e3f2fd; }
+        .event-type-체험 { border-left-color: #4CAF50; background-color: #e8f5e9; }
+        .event-type-교육 { border-left-color: #9C27B0; background-color: #f3e5f5; }
+        .event-type-행사 { border-left-color: #F44336; background-color: #ffebee; }
+        .debug-section {
+            background-color: #f1f1f1;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        .show-debug {
+            background-color: #757575;
+            color: white;
+        }
+        #loadFromUrl {
+            background-color: #9c27b0;
+        }
+        #loadFromUrl:hover {
+            background-color: #7b1fa2;
+        }
+        .csv-url-input {
+            display: none;
+            margin-top: 10px;
+        }
+        #csvUrlInput {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .column-mapper {
+            display: none;
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f8f8;
+            border-radius: 5px;
+        }
+        .column-mapping-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .column-mapping-label {
+            width: 120px;
+            font-weight: bold;
+        }
+        .column-mapping-select {
+            flex-grow: 1;
+            padding: 5px;
+        }
+        .highlight-button {
+            background-color: #ff9800;
+        }
+        .highlight-button:hover {
+            background-color: #f57c00;
+        }
+        .filter-section {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+        .filter-input {
+            padding: 8px;
+            margin-right: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            flex-grow: 1;
+            min-width: 200px;
+            max-width: 300px;
+        }
+        .filter-label {
+            margin-right: 5px;
+            font-weight: bold;
+        }
+        
+        /* 반응형 디자인 */
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .month-selector {
+                justify-content: center;
+                margin-bottom: 10px;
+            }
+            .calendar {
+                font-size: 0.9em;
+            }
+            .calendar td {
+                height: 80px;
+                padding: 2px;
+            }
+            .event {
+                padding: 2px;
+                font-size: 0.8em;
+            }
+            .modal-content {
+                width: 95%;
+                margin: 5% auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>월별 행사 달력</h1>
+        
+        <div class="controls">
+            <div>
+                <label for="fileInput" class="file-label">CSV 파일 선택</label>
+                <input type="file" id="fileInput" class="file-input" accept=".csv">
+                <span id="fileName"></span>
+                <button id="loadFromUrl">URL로 불러오기</button>
+                <div class="csv-url-input" id="csvUrlContainer">
+                    <input type="text" id="csvUrlInput" placeholder="CSV 파일 URL을 입력하세요">
+                    <button id="loadUrlButton">로드</button>
+                </div>
+            </div>
+            
+            <div class="month-selector">
+                <select id="yearSelect"></select>
+                <select id="monthSelect">
+                    <option value="1">1월</option>
+                    <option value="2">2월</option>
+                    <option value="3">3월</option>
+                    <option value="4">4월</option>
+                    <option value="5">5월</option>
+                    <option value="6">6월</option>
+                    <option value="7">7월</option>
+                    <option value="8">8월</option>
+                    <option value="9">9월</option>
+                    <option value="10">10월</option>
+                    <option value="11">11월</option>
+                    <option value="12">12월</option>
+                </select>
+                <button id="goToToday">오늘</button>
+                <button id="toggleDebug" class="show-debug">디버그 정보</button>
+            </div>
+        </div>
+        
+        <div class="filter-section">
+            <span class="filter-label">필터:</span>
+            <input type="text" id="filterInput" class="filter-input" placeholder="행사명, 장소, 유형 등으로 검색">
+            <button id="applyFilter">적용</button>
+            <button id="clearFilter">초기화</button>
+        </div>
+        
+        <div id="columnMapperContainer" class="column-mapper">
+            <h3>열 매핑 설정</h3>
+            <p>CSV 파일의 열이 프로그램에서 필요로 하는 필드와 일치하지 않는 경우, 아래에서 매핑을 설정하세요.</p>
+            
+            <div class="column-mapping-row">
+                <span class="column-mapping-label">시작날짜:</span>
+                <select id="startDateColumn" class="column-mapping-select"></select>
+            </div>
+            
+            <div class="column-mapping-row">
+                <span class="column-mapping-label">종료날짜:</span>
+                <select id="endDateColumn" class="column-mapping-select"></select>
+            </div>
+            
+            <div class="column-mapping-row">
+                <span class="column-mapping-label">행사제목:</span>
+                <select id="titleColumn" class="column-mapping-select"></select>
+            </div>
+            
+            <div class="column-mapping-row">
+                <span class="column-mapping-label">행사내용:</span>
+                <select id="contentColumn" class="column-mapping-select"></select>
+            </div>
+            
+            <div class="column-mapping-row">
+                <span class="column-mapping-label">장소:</span>
+                <select id="locationColumn" class="column-mapping-select"></select>
+            </div>
+            
+            <div class="column-mapping-row">
+                <span class="column-mapping-label">유형:</span>
+                <select id="typeColumn" class="column-mapping-select"></select>
+            </div>
+            
+            <div class="column-mapping-row">
+                <span class="column-mapping-label">시작시간:</span>
+                <select id="startTimeColumn" class="column-mapping-select"></select>
+            </div>
+            
+            <div class="column-mapping-row">
+                <span class="column-mapping-label">종료시간:</span>
+                <select id="endTimeColumn" class="column-mapping-select"></select>
+            </div>
+            
+            <button id="applyMapping" class="highlight-button">매핑 적용</button>
+        </div>
+        
+        <div id="calendarContainer"></div>
+        
+        <div id="stats" class="stats">
+            CSV 파일을 선택해주세요.
+        </div>
+        
+        <div id="debugSection" class="debug-section">
+            <h3>디버그 정보</h3>
+            <div id="debugInfo"></div>
+            <button id="downloadDebug">디버그 정보 다운로드</button>
+        </div>
+    </div>
+    
+    <div id="eventModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="eventDetails"></div>
+        </div>
+    </div>
+    
+    <div id="loadingIndicator" class="loading" style="display: none;">
+        <div class="spinner"></div>
+    </div>
+    
+    <script>
+        // 페이지 로드 시 즉시 실행되는 코드
+        document.addEventListener('DOMContentLoaded', function() {
+            populateYearOptions();
+            setCurrentMonth();
+            renderCalendar();
+            
+            // 이벤트 리스너 등록
+            yearSelect.addEventListener('change', renderCalendar);
+            monthSelect.addEventListener('change', renderCalendar);
+            
+            goToTodayBtn.addEventListener('click', function() {
+                const now = new Date();
+                yearSelect.value = now.getFullYear();
+                monthSelect.value = now.getMonth() + 1;
+                renderCalendar();
+            });
+            
+            closeModalBtn.addEventListener('click', function() {
+                eventModal.style.display = 'none';
+            });
+            
+            window.addEventListener('click', function(event) {
+                if (event.target === eventModal) {
+                    eventModal.style.display = 'none';
+                }
+            });
+            
+            // p1.csv 파일 자동 로드 시도
+            try {
+                setTimeout(function() {
+                    loadCSVFile('p1.csv');
+                }, 500);
+            } catch (e) {
+                addDebugMessage("자동 파일 로드 실패: " + e.message);
+            }
+        });
+        
+        // 전역 변수
+        let rawCSVData = null;         // 원본 CSV 데이터
+        let eventsData = [];           // 처리된 이벤트 데이터
+        let filteredEvents = [];       // 필터링된 이벤트 데이터
+        let totalRows = 0;             // 총 행 수
+        let successfulRows = 0;        // 성공적으로 처리된 행 수
+        let failedRows = 0;            // 처리 실패한 행 수
+        let limitations = [];          // 제한 사항 메시지
+        let debugMessages = [];        // 디버그 메시지
+        let columnHeaders = [];        // CSV 파일의 열 이름 배열
+        let currentFilter = "";        // 현재 적용된 필터
+        
+        // 기본 열 매핑 (기본값)
+        let columnMapping = {
+            startDate: "시작날짜",
+            endDate: "종료날짜",
+            title: "행사제목",
+            content: "행사내용",
+            location: "장소",
+            type: "유형",
+            startTime: "시작시간",
+            endTime: "종료시간",
+            target: "대상",
+            organization: "기관",
+            contact: "연락처"
+        };
+        
+        // DOM 요소 참조
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
+        const yearSelect = document.getElementById('yearSelect');
+        const monthSelect = document.getElementById('monthSelect');
+        const goToTodayBtn = document.getElementById('goToToday');
+        const calendarContainer = document.getElementById('calendarContainer');
+        const statsElement = document.getElementById('stats');
+        const eventModal = document.getElementById('eventModal');
+        const eventDetails = document.getElementById('eventDetails');
+        const closeModalBtn = document.querySelector('.close');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const toggleDebugBtn = document.getElementById('toggleDebug');
+        const debugSection = document.getElementById('debugSection');
+        const debugInfo = document.getElementById('debugInfo');
+        const downloadDebugBtn = document.getElementById('downloadDebug');
+        const loadFromUrlBtn = document.getElementById('loadFromUrl');
+        const csvUrlContainer = document.getElementById('csvUrlContainer');
+        const csvUrlInput = document.getElementById('csvUrlInput');
+        const loadUrlButton = document.getElementById('loadUrlButton');
+        const columnMapperContainer = document.getElementById('columnMapperContainer');
+        const startDateColumn = document.getElementById('startDateColumn');
+        const endDateColumn = document.getElementById('endDateColumn');
+        const titleColumn = document.getElementById('titleColumn');
+        const contentColumn = document.getElementById('contentColumn');
+        const locationColumn = document.getElementById('locationColumn');
+        const typeColumn = document.getElementById('typeColumn');
+        const startTimeColumn = document.getElementById('startTimeColumn');
+        const endTimeColumn = document.getElementById('endTimeColumn');
+        const applyMappingBtn = document.getElementById('applyMapping');
+        const filterInput = document.getElementById('filterInput');
+        const applyFilterBtn = document.getElementById('applyFilter');
+        const clearFilterBtn = document.getElementById('clearFilter');
+        
+        // 디버그 메시지 추가 함수
+        function addDebugMessage(message) {
+            const timestamp = new Date().toISOString();
+            debugMessages.push(`[${timestamp}] ${message}`);
+            updateDebugInfo();
+        }
+        
+        // 디버그 정보 업데이트
+        function updateDebugInfo() {
+            if (debugMessages.length > 100) {
+                debugMessages = debugMessages.slice(-100); // 최대 100개만 유지
+            }
+            debugInfo.innerHTML = debugMessages.join('<br>');
+        }
+        
+        // 디버그 토글
+        toggleDebugBtn.addEventListener('click', function() {
+            if (debugSection.style.display === 'none' || debugSection.style.display === '') {
+                debugSection.style.display = 'block';
+                updateDebugInfo();
+            } else {
+                debugSection.style.display = 'none';
+            }
+        });
+        
+        // 디버그 정보 다운로드
+        downloadDebugBtn.addEventListener('click', function() {
+            const debugText = debugMessages.join('\n');
+            const blob = new Blob([debugText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'calendar_debug.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+        
+        // URL로 불러오기 토글
+        loadFromUrlBtn.addEventListener('click', function() {
+            if (csvUrlContainer.style.display === 'none' || csvUrlContainer.style.display === '') {
+                csvUrlContainer.style.display = 'block';
+                csvUrlInput.focus();
+            } else {
+                csvUrlContainer.style.display = 'none';
+            }
+        });
+        
+        // URL로 CSV 불러오기
+        loadUrlButton.addEventListener('click', function() {
+            const url = csvUrlInput.value.trim();
+            if (url) {
+                loadCSVFromURL(url);
+            } else {
+                alert('URL을 입력해주세요.');
+            }
+        });
+        
+        // URL에서 CSV 로드
+        function loadCSVFromURL(url) {
+            showLoading(true);
+            addDebugMessage(`URL에서 CSV 로드 시도: ${url}`);
+            
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('네트워크 응답이 올바르지 않습니다');
+                    }
+                    return response.text();
+                })
+                .then(csvText => {
+                    processCSVData(csvText);
+                    fileName.textContent = url.split('/').pop() || 'URL에서 로드됨';
+                })
+                .catch(error => {
+                    showLoading(false);
+                    addDebugMessage(`URL 로드 오류: ${error.message}`);
+                    alert(`CSV 파일을 불러오는데 실패했습니다: ${error.message}`);
+                });
+        }
+        
+        // 년도 선택 옵션 채우기 (현재 년도 ±10년)
+        function populateYearOptions() {
+            const currentYear = new Date().getFullYear();
+            for (let year = currentYear - 10; year <= currentYear + 10; year++) {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year + '년';
+                yearSelect.appendChild(option);
+            }
+            yearSelect.value = currentYear;
+        }
+        
+        // 현재 월로 설정
+        function setCurrentMonth() {
+            const now = new Date();
+            monthSelect.value = now.getMonth() + 1;
+        }
+        
+        // 열 매핑 UI 업데이트
+        function updateColumnMappingUI() {
+            if (!columnHeaders || columnHeaders.length === 0) {
+                columnMapperContainer.style.display = 'none';
+                return;
+            }
+            
+            // 모든 선택 상자 초기화 및 옵션 채우기
+            [startDateColumn, endDateColumn, titleColumn, contentColumn, 
+             locationColumn, typeColumn, startTimeColumn, endTimeColumn].forEach(select => {
+                select.innerHTML = '';
+                
+                // 비어있음 옵션 추가
+                const emptyOption = document.createElement('option');
+                emptyOption.value = '';
+                emptyOption.textContent = '(없음)';
+                select.appendChild(emptyOption);
+                
+                // 모든 헤더 옵션 추가
+                columnHeaders.forEach(header => {
+                    const option = document.createElement('option');
+                    option.value = header;
+                    option.textContent = header;
+                    select.appendChild(option);
+                });
+            });
+            
+            // 현재 매핑 설정
+            startDateColumn.value = columnMapping.startDate || '';
+            endDateColumn.value = columnMapping.endDate || '';
+            titleColumn.value = columnMapping.title || '';
+            contentColumn.value = columnMapping.content || '';
+            locationColumn.value = columnMapping.location || '';
+            typeColumn.value = columnMapping.type || '';
+            startTimeColumn.value = columnMapping.startTime || '';
+            endTimeColumn.value = columnMapping.endTime || '';
+            
+            // 매핑 UI 표시
+            columnMapperContainer.style.display = 'block';
+        }
+        
+        // 매핑 적용 버튼 이벤트
+        applyMappingBtn.addEventListener('click', function() {
+            // 새 매핑 저장
+            columnMapping = {
+                startDate: startDateColumn.value,
+                endDate: endDateColumn.value,
+                title: titleColumn.value,
+                content: contentColumn.value,
+                location: locationColumn.value,
+                type: typeColumn.value,
+                startTime: startTimeColumn.value,
+                endTime: endTimeColumn.value,
+                target: 'target', // 기본 유지
+                organization: 'organization', // 기본 유지
+                contact: 'contact' // 기본 유지
+            };
+            
+            addDebugMessage("새 열 매핑 적용: " + JSON.stringify(columnMapping));
+            
+            // 원본 CSV 데이터 재처리
+            if (rawCSVData) {
+                processEventsData(rawCSVData);
+                updateStats();
+                applyFilter();
+                renderCalendar();
+            }
+        });
+        
+        // 필터 적용 버튼
+        applyFilterBtn.addEventListener('click', function() {
+            applyFilter();
+        });
+        
+        // 필터 초기화 버튼
+        clearFilterBtn.addEventListener('click', function() {
+            filterInput.value = '';
+            currentFilter = '';
+            applyFilter();
+        });
+        
+        // 필터 적용 함수
+        function applyFilter() {
+            currentFilter = filterInput.value.trim().toLowerCase();
+            
+            if (!currentFilter) {
+                // 필터가 없으면 모든 이벤트 표시
+                filteredEvents = [...eventsData];
+            } else {
+                // 필터 적용
+                filteredEvents = eventsData.filter(event => {
+                    // 이벤트의 모든 텍스트 필드를 검색
+                    return Object.values(event).some(value => {
+                        if (value === null || value === undefined) return false;
+                        if (value instanceof Date) return false;
+                        return String(value).toLowerCase().includes(currentFilter);
+                    });
+                });
+            }
+            
+            addDebugMessage(`필터 적용: "${currentFilter}" - ${filteredEvents.length}개 결과`);
+            renderCalendar();
+            
+            // 통계 업데이트
+            const filterStats = `<br><strong>현재 필터:</strong> ${currentFilter ? `"${currentFilter}" (${filteredEvents.length}개 표시)` : '없음'}`;
+            const statsHtml = statsElement.innerHTML.split('<br><strong>현재 필터:')[0] + filterStats;
+            statsElement.innerHTML = statsHtml;
+        }
+        
+        // 엔터 키로 필터 적용
+        filterInput.addEventListener('keyup', function(event) {
+            if (event.key === 'Enter') {
+                applyFilter();
+            }
+        });
+        
+        // 날짜 문자열 파싱 함수 (개선된 버전)
+        function parseDate(dateStr) {
+            if (!dateStr) return null;
+            
+            // 이미 Date 객체인 경우
+            if (dateStr instanceof Date) {
+                return new Date(dateStr);
+            }
+            
+            // 문자열로 변환
+            let dateString = String(dateStr).trim();
+            
+            // 빈 문자열 체크
+            if (dateString === '') {
+                return null;
+            }
+            
+            addDebugMessage(`날짜 파싱 시도: "${dateString}"`);
+            
+            // 일반적인 날짜 형식들 시도
+            const formats = [
+                'YYYY-MM-DD', 'YYYY/MM/DD', 'YYYY.MM.DD',
+                'DD-MM-YYYY', 'DD/MM/YYYY', 'DD.MM.YYYY',
+                'MM-DD-YYYY', 'MM/DD/YYYY', 'MM.DD.YYYY',
+                'YY-MM-DD', 'YY/MM/DD', 'YY.MM.DD',
+                'YYYYMMDD', 'DDMMYYYY', 'MMDDYYYY'
+            ];
+            
+            for (const format of formats) {
+                const date = moment(dateString, format, true); // strict parsing
+                if (date.isValid()) {
+                    addDebugMessage(`날짜 파싱 성공 (${format}): ${date.format('YYYY-MM-DD')}`);
+                    return date.toDate();
+                }
+            }
+            
+            // 한국어 날짜 형식 (YYYY년 MM월 DD일)
+            const koreanDatePattern = /(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/;
+            const koreanMatch = dateString.match(koreanDatePattern);
+            if (koreanMatch) {
+                const year = parseInt(koreanMatch[1]);
+                const month = parseInt(koreanMatch[2]) - 1; // 0-based month
+                const day = parseInt(koreanMatch[3]);
+                const date = new Date(year, month, day);
+                
+                if (!isNaN(date.getTime())) {
+                    addDebugMessage(`한국어 날짜 형식 파싱 성공: ${date.toISOString().split('T')[0]}`);
+                    return date;
+                }
+            }
+            
+            // 숫자만 있는 경우 (YYYYMMDD 형식)
+            const numericPattern = /^(\d{4})(\d{2})(\d{2})$/;
+            const numericMatch = dateString.match(numericPattern);
+            if (numericMatch) {
+                const year = parseInt(numericMatch[1]);
+                const month = parseInt(numericMatch[2]) - 1; // 0-based month
+                const day = parseInt(numericMatch[3]);
+                const date = new Date(year, month, day);
+                
+                if (!isNaN(date.getTime())) {
+                    addDebugMessage(`숫자 형식 날짜 파싱 성공: ${date.toISOString().split('T')[0]}`);
+                    return date;
+                }
+            }
+            
+            // Excel 일련번호 시도 (1900-01-01 = 1)
+            if (/^\d+(\.\d+)?$/.test(dateString)) {
+                const excelDate = parseFloat(dateString);
+                if (excelDate > 0) {
+                    // Excel의 날짜 시스템 (1900-01-01 = 1)
+                    // 주의: Excel의 버그로 1900년 2월 29일이 실제로 존재하지 않지만 포함됨
+                    const date = new Date(Date.UTC(1899, 11, 30));
+                    date.setDate(date.getDate() + excelDate);
+                    
+                    if (!isNaN(date.getTime())) {
+                        addDebugMessage(`Excel 일련번호 날짜 파싱 성공: ${date.toISOString().split('T')[0]}`);
+                        return date;
+                    }
+                }
+            }
+            
+            // 모든 시도 실패
+            addDebugMessage(`날짜 파싱 실패: "${dateString}"`);
+            return null;
