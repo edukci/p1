@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>월별 행사 달력</title>
+    <style>
+        body {
+            font-family: 'Malgun Gothic', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+        }
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .month-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .btn-primary {
+            background-color: #1e88e5;
+            color: white;
+        }
+        .btn-success {
+            background-color: #4caf50;
+            color: white;
+        }
+        .btn-secondary {
+            background-color: #757575;
+            color: white;
+        }
+        .btn:hover {
+            opacity: 0.9;
+        }
+        select {
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        .search-bar {
+            flex-grow: 1;
+            max-width: 400px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        .calendar {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .calendar th {
+            background-color: #f0f0f0;
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+        .calendar td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            height: 100px;
+            vertical-align: top;
+        }
+        .calendar .date {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .event {
+            background-color: #e3f2fd;
+            border-radius: 3px;
+            padding: 5px;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+            cursor: pointer;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .event:hover {
+            background-color: #bbdefb;
+        }
+        .today {
+            background-color: #fffde7;
+        }
+        .other-month {
+            background-color: #f9f9f9;
+            color: #aaa;
+        }
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 20px;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .modal-title {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        .close-btn {
+            cursor: pointer;
+            font-size: 1.5em;
+        }
+        .modal-body {
+            margin-bottom: 20px;
+        }
+        .modal-footer {
+            text-align: right;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+        }
+        .event-detail {
+            margin-bottom: 10px;
+        }
+        .event-detail strong {
+            display: inline-block;
+            width: 100px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>월별 행사 달력</h1>
+        
+        <div class="controls">
+            <div class="month-selector">
+                <select id="year-select">
+                    <option value="2022">2022년</option>
+                    <option value="2023">2023년</option>
+                    <option value="2024">2024년</option>
+                    <option value="2025" selected>2025년</option>
+                </select>
+                <select id="month-select">
+                    <option value="1">1월</option>
+                    <option value="2">2월</option>
+                    <option value="3">3월</option>
+                    <option value="4">4월</option>
+                    <option value="5">5월</option>
+                    <option value="6">6월</option>
+                    <option value="7">7월</option>
+                    <option value="8">8월</option>
+                    <option value="9">9월</option>
+                    <option value="10">10월</option>
+                    <option value="11">11월</option>
+                    <option value="12">12월</option>
+                </select>
+                <button id="today-btn" class="btn btn-success">오늘</button>
+            </div>
+            
+            <div class="search-bar">
+                <input type="text" id="search-input" placeholder="행사명, 장소, 유형 등으로 검색">
+            </div>
+            
+            <button id="data-btn" class="btn btn-secondary">데이터 정보</button>
+        </div>
+        
+        <div id="calendar-container">
+            <table class="calendar" id="calendar">
+                <thead>
+                    <tr>
+                        <th>일</th>
+                        <th>월</th>
+                        <th>화</th>
+                        <th>수</th>
+                        <th>목</th>
+                        <th>금</th>
+                        <th>토</th>
+                    </tr>
+                </thead>
+                <tbody id="calendar-body">
+                    <!-- Calendar will be populated here -->
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="filter-buttons">
+            <button id="apply-filter" class="btn btn-success">적용</button>
+            <button id="reset-filter" class="btn btn-primary">초기화</button>
+        </div>
+    </div>
+    
+    <!-- Event Details Modal -->
+    <div id="event-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="event-title">행사 제목</h2>
+                <span class="close-btn" id="close-modal">&times;</span>
+            </div>
+            <div class="modal-body" id="event-details">
+                <!-- Event details will be populated here -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="close-modal-btn">닫기</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            let events = [];
+            let filteredEvents = [];
+            
+            // Load CSV data
+            fetch('p1.csv')
+                .then(response => response.text())
+                .then(data => {
+                    // Parse CSV
+                    const rows = data.split('\n');
+                    const headers = rows[0].split(',');
+                    
+                    // Skip header row and parse the rest
+                    for (let i = 1; i < rows.length; i++) {
+                        if (rows[i].trim() === '') continue;
+                        
+                        const values = parseCSVRow(rows[i]);
+                        if (values.length !== headers.length) continue;
+                        
+                        const event = {};
+                        for (let j = 0; j < headers.length; j++) {
+                            event[headers[j].trim()] = values[j].trim();
+                        }
+                        
+                        // Ensure date is properly formatted
+                        if (event.startDate) {
+                            // Assuming date format is YYYY-MM-DD or similar
+                            event.date = new Date(event.startDate);
+                        } else if (event.date) {
+                            event.date = new Date(event.date);
+                        }
+                        
+                        events.push(event);
+                    }
+                    
+                    filteredEvents = [...events];
+                    
+                    // Initialize calendar with current month
+                    const today = new Date();
+                    document.getElementById('year-select').value = today.getFullYear();
+                    document.getElementById('month-select').value = today.getMonth() + 1;
+                    generateCalendar(today.getFullYear(), today.getMonth());
+                })
+                .catch(error => {
+                    console.error('Error loading CSV file:', error);
+                    alert('CSV 파일을 불러오는 중 오류가 발생했습니다. 파일 경로를 확인해주세요.');
+                });
+            
+            // Parse CSV row handling quoted fields and commas within fields
+            function parseCSVRow(row) {
+                const result = [];
+                let insideQuotes = false;
+                let currentValue = '';
+                
+                for (let i = 0; i < row.length; i++) {
+                    const char = row[i];
+                    
+                    if (char === '"') {
+                        insideQuotes = !insideQuotes;
+                    } else if (char === ',' && !insideQuotes) {
+                        result.push(currentValue);
+                        currentValue = '';
+                    } else {
+                        currentValue += char;
+                    }
+                }
+                
+                result.push(currentValue);
+                return result;
+            }
+            
+            // Generate calendar for given year and month
+            function generateCalendar(year, month) {
+                const firstDay = new Date(year, month - 1, 1);
+                const lastDay = new Date(year, month, 0);
+                const daysInMonth = lastDay.getDate();
+                const startingDayOfWeek = firstDay.getDay();
+                
+                const calendarBody = document.getElementById('calendar-body');
+                calendarBody.innerHTML = '';
+                
+                let date = 1;
+                for (let i = 0; i < 6; i++) {
+                    if (date > daysInMonth) break;
+                    
+                    const row = document.createElement('tr');
+                    
+                    for (let j = 0; j < 7; j++) {
+                        const cell = document.createElement('td');
+                        
+                        if (i === 0 && j < startingDayOfWeek) {
+                            // Empty cells before the first day of the month
+                            cell.classList.add('other-month');
+                        } else if (date > daysInMonth) {
+                            // Empty cells after the last day of the month
+                            cell.classList.add('other-month');
+                        } else {
+                            // Regular day cell
+                            const dateDiv = document.createElement('div');
+                            dateDiv.classList.add('date');
+                            dateDiv.textContent = date;
+                            cell.appendChild(dateDiv);
+                            
+                            // Check if it's today
+                            const today = new Date();
+                            if (date === today.getDate() && month === today.getMonth() + 1 && year === today.getFullYear()) {
+                                cell.classList.add('today');
+                            }
+                            
+                            // Add events for this day
+                            const currentDate = new Date(year, month - 1, date);
+                            
+                            filteredEvents.forEach(event => {
+                                if (!event.date) return;
+                                
+                                const eventDate = event.date;
+                                
+                                if (eventDate.getDate() === currentDate.getDate() && 
+                                    eventDate.getMonth() === currentDate.getMonth() && 
+                                    eventDate.getFullYear() === currentDate.getFullYear()) {
+                                    
+                                    const eventDiv = document.createElement('div');
+                                    eventDiv.classList.add('event');
+                                    eventDiv.textContent = event.title || '제목 없음';
+                                    
+                                    eventDiv.addEventListener('click', function() {
+                                        showEventDetails(event);
+                                    });
+                                    
+                                    cell.appendChild(eventDiv);
+                                }
+                            });
+                            
+                            date++;
+                        }
+                        
+                        row.appendChild(cell);
+                    }
+                    
+                    calendarBody.appendChild(row);
+                }
+            }
+            
+            // Show event details in modal
+            function showEventDetails(event) {
+                document.getElementById('event-title').textContent = event.title || '제목 없음';
+                
+                const detailsContainer = document.getElementById('event-details');
+                detailsContainer.innerHTML = '';
+                
+                // Add all event details
+                for (const key in event) {
+                    if (key === 'date' || key === 'title') continue;
+                    
+                    const detailDiv = document.createElement('div');
+                    detailDiv.classList.add('event-detail');
+                    
+                    // Translate key names to Korean
+                    let keyName = key;
+                    switch (key) {
+                        case 'startDate': keyName = '시작일'; break;
+                        case 'endDate': keyName = '종료일'; break;
+                        case 'location': keyName = '장소'; break;
+                        case 'address': keyName = '주소'; break;
+                        case 'description': keyName = '설명'; break;
+                        case 'category': keyName = '분류'; break;
+                        case 'organizer': keyName = '주최자'; break;
+                        case 'contact': keyName = '연락처'; break;
+                        case 'website': keyName = '웹사이트'; break;
+                        case 'fee': keyName = '요금'; break;
+                    }
+                    
+                    detailDiv.innerHTML = `<strong>${keyName}:</strong> ${event[key]}`;
+                    detailsContainer.appendChild(detailDiv);
+                }
+                
+                document.getElementById('event-modal').style.display = 'block';
+            }
+            
+            // Close modal when clicking the close button
+            document.getElementById('close-modal').addEventListener('click', function() {
+                document.getElementById('event-modal').style.display = 'none';
+            });
+            
+            document.getElementById('close-modal-btn').addEventListener('click', function() {
+                document.getElementById('event-modal').style.display = 'none';
+            });
+            
+            // Close modal when clicking outside of it
+            window.addEventListener('click', function(event) {
+                const modal = document.getElementById('event-modal');
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+            
+            // Update calendar when month or year selection changes
+            document.getElementById('month-select').addEventListener('change', updateCalendar);
+            document.getElementById('year-select').addEventListener('change', updateCalendar);
+            
+            function updateCalendar() {
+                const year = parseInt(document.getElementById('year-select').value);
+                const month = parseInt(document.getElementById('month-select').value);
+                generateCalendar(year, month);
+            }
+            
+            // Set to today
+            document.getElementById('today-btn').addEventListener('click', function() {
+                const today = new Date();
+                document.getElementById('year-select').value = today.getFullYear();
+                document.getElementById('month-select').value = today.getMonth() + 1;
+                generateCalendar(today.getFullYear(), today.getMonth() + 1);
+            });
+            
+            // Search functionality
+            document.getElementById('search-input').addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                
+                if (searchTerm === '') {
+                    filteredEvents = [...events];
+                } else {
+                    filteredEvents = events.filter(event => {
+                        // Search in all fields
+                        for (const key in event) {
+                            if (typeof event[key] === 'string' && 
+                                event[key].toLowerCase().includes(searchTerm)) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    });
+                }
+                
+                updateCalendar();
+            });
+            
+            // Apply and reset filters
+            document.getElementById('apply-filter').addEventListener('click', function() {
+                const searchTerm = document.getElementById('search-input').value.toLowerCase();
+                
+                if (searchTerm === '') {
+                    filteredEvents = [...events];
+                } else {
+                    filteredEvents = events.filter(event => {
+                        for (const key in event) {
+                            if (typeof event[key] === 'string' && 
+                                event[key].toLowerCase().includes(searchTerm)) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    });
+                }
+                
+                updateCalendar();
+            });
+            
+            document.getElementById('reset-filter').addEventListener('click', function() {
+                document.getElementById('search-input').value = '';
+                filteredEvents = [...events];
+                updateCalendar();
+            });
+        });
+    </script>
+</body>
+</html>
