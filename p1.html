@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>월별 행사 달력</title>
+<style>
+  body {
+    font-family: sans-serif;
+  }
+  .calendar {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .calendar th, .calendar td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: center;
+    vertical-align: top;
+    min-height: 80px;
+  }
+  .calendar th {
+    background-color: #f0f0f0;
+  }
+  .day {
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
+  .event {
+    background-color: #e9ecef;
+    padding: 5px;
+    margin-bottom: 3px;
+    border-radius: 3px;
+    text-align: left;
+    font-size: 0.9em;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<h1>월별 행사 달력</h1>
+
+<table class="calendar" id="monthlyCalendar">
+  <thead>
+    <tr>
+      <th>일</th>
+      <th>월</th>
+      <th>화</th>
+      <th>수</th>
+      <th>목</th>
+      <th>금</th>
+      <th>토</th>
+    </tr>
+  </thead>
+  <tbody>
+  </tbody>
+</table>
+
+<script>
+  async function loadAndDisplayCalendar() {
+    try {
+      const response = await fetch('p1.csv');
+      const csvData = await response.text();
+      const events = parseCSV(csvData);
+      renderCalendar(events);
+    } catch (error) {
+      console.error('CSV 파일 로드 오류:', error);
+      document.getElementById('monthlyCalendar').innerHTML = '<p>CSV 파일을 로드하는 데 실패했습니다.</p>';
+    }
+  }
+
+  function parseCSV(csvText) {
+    const lines = csvText.trim().split('\n');
+    const headers = lines[0].split(',');
+    const events = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',');
+      const event = {};
+      headers.forEach((header, index) => {
+        event[header.trim()] = values[index] ? values[index].trim() : '';
+      });
+      events.push(event);
+    }
+    return events;
+  }
+
+  function renderCalendar(events) {
+    const calendarBody = document.querySelector('#monthlyCalendar tbody');
+    calendarBody.innerHTML = ''; // 기존 내용 비우기
+
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth(); // 0-indexed
+
+    const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+    const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
+    const daysInMonth = lastDayOfMonth.getDate();
+    const firstDayOfWeek = firstDayOfMonth.getDay(); // 0 (일) ~ 6 (토)
+
+    let dayCounter = 1;
+
+    for (let i = 0; i < 6; i++) { // 최대 6주
+      const row = calendarBody.insertRow();
+      for (let j = 0; j < 7; j++) {
+        const cell = row.insertCell();
+        if (i === 0 && j < firstDayOfWeek) {
+          // 이전 달의 날짜
+        } else if (dayCounter > daysInMonth) {
+          // 다음 달의 날짜
+        } else {
+          const date = currentYear + '-' + String(currentMonth + 1).padStart(2, '0') + '-' + String(dayCounter).padStart(2, '0');
+          cell.innerHTML = `<div class="day">${dayCounter}</div>`;
+
+          const eventsOnThisDay = events.filter(event => {
+            const startDate = new Date(event['시작날짜']);
+            const endDate = event['종료날짜'] ? new Date(event['종료날짜']) : startDate;
+            const currentDateObj = new Date(date);
+            currentDateObj.setHours(0, 0, 0, 0);
+            startDate.setHours(0, 0, 0, 0);
+            endDate.setHours(23, 59, 59, 999);
+            return currentDateObj >= startDate && currentDateObj <= endDate;
+          });
+
+          eventsOnThisDay.forEach(event => {
+            const eventDiv = document.createElement('div');
+            eventDiv.classList.add('event');
+            eventDiv.textContent = event['행사제목'];
+            eventDiv.addEventListener('click', () => openEventDetails(event));
+            cell.appendChild(eventDiv);
+          });
+
+          dayCounter++;
+        }
+      }
+      if (dayCounter > daysInMonth) {
+        break; // 이번 달이 끝나면 루프 종료
+      }
+    }
+  }
+
+  function openEventDetails(event) {
+    const details = `
+      <h2>${event['행사제목']}</h2>
+      <p><strong>지역:</strong> ${event['지역']}</p>
+      <p><strong>유형:</strong> ${event['유형']}</p>
+      <p><strong>시작 날짜:</strong> ${event['시작날짜']}</p>
+      ${event['종료날짜'] ? `<p><strong>종료 날짜:</strong> ${event['종료날짜']}</p>` : ''}
+      <p><strong>시작 요일:</strong> ${event['시작요일']}</p>
+      ${event['종료요일'] ? `<p><strong>종료 요일:</strong> ${event['종료요일']}</p>` : ''}
+      ${event['시작시간'] ? `<p><strong>시작 시간:</strong> ${event['시작시간']}</p>` : ''}
+      ${event['종료시간'] ? `<p><strong>종료 시간:</strong> ${event['종료시간']}</p>` : ''}
+      ${event['행사내용'] ? `<p><strong>행사 내용:</strong> ${event['행사내용']}</p>` : ''}
+      ${event['장소'] ? `<p><strong>장소:</strong> ${event['장소']}</p>` : ''}
+      ${event['대상'] ? `<p><strong>대상:</strong> ${event['대상']}</p>` : ''}
+      ${event['기관'] ? `<p><strong>기관:</strong> ${event['기관']}</p>` : ''}
+      ${event['연락처'] ? `<p><strong>연락처:</strong> ${event['연락처']}</p>` : ''}
+    `;
+    const newWindow = window.open('', '_blank');
+    newWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${event['행사제목']}</title>
+        <style>
+          body { font-family: sans-serif; }
+          h2 { color: navy; }
+          strong { font-weight: bold; }
+          p { margin-bottom: 10px; }
+        </style>
+      </head>
+      <body>
+        ${details}
+      </body>
+      </html>
+    `);
+    newWindow.document.close();
+  }
+
+  // 페이지 로드 시 달력 표시
+  loadAndDisplayCalendar();
+</script>
+
+</body>
+</html>
