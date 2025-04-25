@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>나들이(전국)</title>
+    <style>
+        body {
+            font-family: sans-serif;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        table {
+            border-collapse: collapse;
+            width: 80%;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+            height: 60px;
+            vertical-align: top;
+            font-size: 12px;
+        }
+        th {
+            background-color: #f0f0f0;
+            text-align: center;
+        }
+        .event {
+            background-color: #e0f7fa;
+            padding: 3px;
+            margin-bottom: 2px;
+            border-radius: 3px;
+            cursor: pointer;
+            display: block;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            max-width: 95%;
+            font-size: 11px;
+        }
+        .today {
+            background-color: #ffe0b2;
+        }
+        .day-number {
+            text-align: center;
+            margin-bottom: 3px;
+            font-weight: bold;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="controls">
+            <select id="month-select">
+                <option value="1">1월</option>
+                <option value="2">2월</option>
+                <option value="3">3월</option>
+                <option value="4" selected>4월</option>
+                <option value="5">5월</option>
+                <option value="6">6월</option>
+                <option value="7">7월</option>
+                <option value="8">8월</option>
+                <option value="9">9월</option>
+                <option value="10">10월</option>
+                <option value="11">11월</option>
+                <option value="12">12월</option>
+            </select>
+            <select id="region-select">
+                <option value="전국">전국</option>
+                <option value="서울">서울</option>
+                <option value="부산">부산</option>
+                <option value="대구">대구</option>
+                <option value="인천" selected>인천</option>
+                <option value="광주">광주</option>
+                <option value="대전">대전</option>
+                <option value="울산">울산</option>
+                <option value="세종">세종</option>
+                <option value="경기">경기</option>
+                <option value="강원">강원</option>
+                <option value="충북">충북</option>
+                <option value="충남">충남</option>
+                <option value="전북">전북</option>
+                <option value="전남">전남</option>
+                <option value="경북">경북</option>
+                <option value="경남">경남</option>
+                <option value="제주">제주</option>
+            </select>
+            <button onclick="loadCalendar()">달력 보기</button>
+        </div>
+        <div id="calendar"></div>
+    </div>
+
+    <script>
+        console.log('스크립트 시작');
+
+        const today = new Date();
+        let currentMonth = today.getMonth() + 1;
+        let currentYear = today.getFullYear();
+        const monthSelect = document.getElementById('month-select');
+        const regionSelect = document.getElementById('region-select');
+        const calendarDiv = document.getElementById('calendar');
+
+        console.log('초기 변수 설정:', { currentMonth, currentYear });
+        monthSelect.value = 4;
+        console.log('월 선택 초기값 설정:', monthSelect.value);
+
+        function loadCalendar() {
+            const selectedMonth = parseInt(monthSelect.value);
+            const selectedRegion = regionSelect.value;
+            console.log('loadCalendar 호출됨', { selectedMonth, selectedRegion });
+
+            fetch('p1.csv')
+                .then(response => {
+                    console.log('CSV 파일 로드 응답:', response.status, response.ok);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(csvData => {
+                    console.log('CSV 데이터 로드 완료, 데이터 길이:', csvData.length);
+                    const events = parseCSV(csvData);
+                    console.log('parseCSV 완료, 이벤트 개수:', events.length);
+                    renderCalendar(currentYear, selectedMonth, events, selectedRegion);
+                    console.log('renderCalendar 완료');
+                })
+                .catch(error => {
+                    console.error('CSV 파일 로드 또는 처리 오류:', error);
+                    calendarDiv.innerHTML = '<p>CSV 파일을 로드하거나 처리하는 데 실패했습니다.</p>';
+                });
+        }
+
+        function parseCSV(csvText) {
+            console.log('parseCSV 시작, 텍스트 길이:', csvText.length);
+            const lines = csvText.trim().split('\n');
+            console.log('총 줄 수:', lines.length);
+            if (lines.length <= 1) {
+                console.warn('CSV 데이터에 내용이 없거나 헤더만 존재합니다.');
+                return [];
+            }
+            const headers = lines[0].split(',');
+            console.log('헤더:', headers);
+            const data = [];
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',');
+                if (headers.length === values.length) {
+                    const entry = {};
+                    headers.forEach((header, index) => {
+                        entry[header] = values[index].trim();
+                    });
+                    data.push(entry);
+                } else {
+                    console.warn(`CSV 데이터 불일치 (줄 ${i + 1}):`, { headersLength: headers.length, valuesLength: values.length, line: lines[i] });
+                }
+            }
+            console.log('parseCSV 종료, 파싱된 데이터 개수:', data.length);
+            return data;
+        }
+
+        function renderCalendar(year, month, events, region) {
+            console.log('renderCalendar 시작', { year, month, eventsLength: events.length, region });
+            calendarDiv.innerHTML = '';
+
+            const firstDayOfMonth = new Date(year, month - 1, 1);
+            const lastDayOfMonth = new Date(year, month, 0);
+            const daysInMonth = lastDayOfMonth.getDate();
+            const firstDayOfWeek = firstDayOfMonth.getDay();
+
+            console.log('날짜 정보:', { firstDayOfMonth, lastDayOfMonth, daysInMonth, firstDayOfWeek });
+
+            const calendarTable = document.createElement('table');
+            const headerRow = document.createElement('tr');
+            const daysOfWeek = ['일', '월', '화', '수', '목', '금', '토'];
+            daysOfWeek.forEach(day => {
+                const th = document.createElement('th');
+                th.textContent = day;
+                headerRow.appendChild(th);
+            });
+            calendarTable.appendChild(headerRow);
+
+            let dayCounter = 1;
+            for (let i = 0; i < 6; i++) {
+                const weekRow = document.createElement('tr');
+                for (let j = 0; j < 7; j++) {
+                    const dayCell = document.createElement('td');
+                    if (i === 0 && j < firstDayOfWeek) {
+                        // 이전 달의 빈 칸
+                    } else if (dayCounter > daysInMonth) {
+                        // 다음 달의 빈 칸
+                    } else {
+                        const currentDate = new Date(year, month - 1, dayCounter);
+                        dayCell.innerHTML = `<div class="day-number">${dayCounter}</div>`;
+                        if (currentDate.toDateString() === today.toDateString()) {
+                            dayCell.classList.add('today');
+                        }
+
+                        const dailyEvents = events.filter(event => {
+                            const startDate = new Date(event['시작날짜']);
+                            const endDate = event['종료날짜'] ? new Date(event['종료날짜']) : startDate;
+                            const eventRegion = event['지역'].trim();
+
+                            const isSameOrAfterStart = currentDate >= startDate;
+                            const isSameOrBeforeEnd = currentDate <= endDate;
+                            const isMatchingRegion = region === '전국' || eventRegion === region;
+
+                            return isSameOrAfterStart && isSameOrBeforeEnd && isMatchingRegion;
+                        });
+
+                        dailyEvents.forEach(event => {
+                            const eventLink = document.createElement('a');
+                            eventLink.href = '#';
+                            eventLink.classList.add('event');
+                            const title = event['행사제목'].trim();
+                            eventLink.textContent = title.length > 12 ? title.substring(0, 12) + '...' : title;
+                            eventLink.addEventListener('click', () => openEventDetails(event));
+                            dayCell.appendChild(eventLink);
+                        });
+
+                        dayCounter++;
+                    }
+                    weekRow.appendChild(dayCell);
+                }
+                calendarTable.appendChild(weekRow);
+                if (dayCounter > daysInMonth) {
+                    break;
+                }
+            }
+
+            calendarDiv.appendChild(calendarTable);
+            console.log('renderCalendar 종료, 테이블 추가됨');
+        }
+
+        function openEventDetails(event) {
+            console.log('openEventDetails 호출됨', event);
+            const details = `
+                <h2>${event['행사제목']}</h2>
+                <p><b>지역:</b> ${event['지역']}</p>
+                <p><b>유형:</b> ${event['유형']}</p>
+                <p><b>시작 날짜:</b> ${event['시작날짜']}</p>
+                ${event['종료날짜'] ? `<p><b>종료 날짜:</b> ${event['종료날짜']}</p>` : ''}
+                ${event['시작시간'] ? `<p><b>시작 시간:</b> ${event['시작시간']}</p>` : ''}
+                ${event['종료시간'] ? `<p><b>종료 시간:</b> ${event['종료시간']}</p>` : ''}
+                <p><b>장소:</b> ${event['장소']}</p>
+                ${event['대상'] ? `<p><b>대상:</b> ${event['대상']}</p>` : ''}
+                ${event['기관'] ? `<p><b>기관:</b> ${event['기관']}</p>` : ''}
+                ${event['연락처'] ? `<p><b>연락처:</b> ${event['연락처']}</p>` : ''}
+                <p><b>내용:</b> ${event['행사내용']}</p>
+            `;
+            const newWindow = window.open('', '_blank');
+            newWindow.document.write(`
+                <!DOCTYPE html>
+                <html lang="ko">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>${event['행사제목']}</title>
+                </head>
+                <body>
+                    ${details}
+                </body>
+                </html>
+            `);
+            newWindow.document.close();
+            console.log('openEventDetails 종료, 새 창 열림');
+        }
+
+        loadCalendar();
+        console.log('초기 loadCalendar 호출 완료');
+    </script>
+</body>
+</html>
