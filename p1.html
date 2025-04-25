@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>인천 행사 정보</title>
+    <style>
+        body {
+            font-family: sans-serif;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>인천 행사 정보</h1>
+
+    <div id="event-list">
+        </div>
+
+    <script>
+        async function loadCSV(filePath) {
+            try {
+                const response = await fetch(filePath);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const csvText = await response.text();
+                return csvText;
+            } catch (error) {
+                console.error('CSV 파일 로드 오류:', error);
+                return null;
+            }
+        }
+
+        function parseCSV(csvText) {
+            console.log('parseCSV 시작, 텍스트 길이:', csvText.length);
+            const lines = csvText.trim().split('\n');
+            console.log('총 줄 수:', lines.length);
+            if (lines.length <= 1) {
+                console.warn('CSV 데이터에 내용이 없거나 헤더만 존재합니다.');
+                return [];
+            }
+            const headers = lines[0].split(',');
+            console.log('헤더:', headers);
+            const data = [];
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',');
+                console.log(`줄 ${i + 1}: 원본 값:`, lines[i]);
+                console.log(`줄 ${i + 1}: 분리된 값 개수: ${values.length}, 값:`, values);
+                if (headers.length === values.length) {
+                    const entry = {};
+                    headers.forEach((header, index) => {
+                        entry[header] = values[index].trim();
+                    });
+                    data.push(entry);
+                } else {
+                    console.warn(`CSV 데이터 불일치 (줄 ${i + 1}): 헤더 개수=${headers.length}, 값 개수=${values.length}`);
+                }
+            }
+            console.log('parseCSV 종료, 파싱된 데이터 개수:', data.length);
+            return data;
+        }
+
+        function displayEvents(events) {
+            const eventListDiv = document.getElementById('event-list');
+            if (!events || events.length === 0) {
+                eventListDiv.innerHTML = '<p>표시할 행사 정보가 없습니다.</p>';
+                return;
+            }
+
+            const table = document.createElement('table');
+            const thead = document.createElement('thead');
+            const tbody = document.createElement('tbody');
+            const headers = Object.keys(events[0]);
+
+            // 테이블 헤더 생성
+            const headerRow = document.createElement('tr');
+            headers.forEach(headerText => {
+                const th = document.createElement('th');
+                th.textContent = headerText;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            // 테이블 데이터 행 생성
+            events.forEach(event => {
+                const dataRow = document.createElement('tr');
+                headers.forEach(header => {
+                    const td = document.createElement('td');
+                    td.textContent = event[header];
+                    dataRow.appendChild(td);
+                });
+                tbody.appendChild(dataRow);
+            });
+            table.appendChild(tbody);
+
+            eventListDiv.appendChild(table);
+        }
+
+        async function main() {
+            const csvFilePath = 'p1.csv'; // CSV 파일 경로
+            const csvData = await loadCSV(csvFilePath);
+            if (csvData) {
+                const events = parseCSV(csvData);
+                displayEvents(events);
+            }
+        }
+
+        main();
+    </script>
+
+</body>
+</html>
