@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>나들이(전국)</title>
+    <style>
+        body {
+            font-family: sans-serif;
+        }
+        .controls {
+            margin-bottom: 10px;
+        }
+        .calendar {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        .calendar th, .calendar td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: center;
+            vertical-align: top;
+            font-size: 1em;
+            min-height: 80px;
+        }
+        .calendar th {
+            background-color: #f2f2f2;
+        }
+        .calendar td.today {
+            background-color: #ffe0b2; /* 주황색 계열 */
+        }
+        .event-title {
+            display: block;
+            margin-bottom: 5px;
+            padding: 5px;
+            background-color: #e0f7fa;
+            border: 1px solid #b2ebf2;
+            cursor: pointer;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            max-width: 100%; /* Added for ellipsis to work within cell */
+        }
+    </style>
+</head>
+<body>
+
+    <h1>나들이(전국)</h1>
+
+    <div class="controls">
+        <label for="month-select">월:</label>
+        <select id="month-select">
+            </select>
+
+        <label for="region-select">지역:</label>
+        <select id="region-select">
+            <option value="전국">전국</option>
+            <option value="서울">서울</option>
+            <option value="부산">부산</option>
+            <option value="대구">대구</option>
+            <option value="인천" selected>인천</option>
+            <option value="광주">광주</option>
+            <option value="대전">대전</option>
+            <option value="울산">울산</option>
+            <option value="세종">세종</option>
+            <option value="경기">경기</option>
+            <option value="강원">강원</option>
+            <option value="충북">충북</option>
+            <option value="충남">충남</option>
+            <option value="전북">전북</option>
+            <option value="전남">전남</option>
+            <option value="경북">경북</option>
+            <option value="경남">경남</option>
+            <option value="제주">제주</option>
+        </select>
+    </div>
+
+    <div id="calendar-container">
+        </div>
+
+    <script>
+        const regionSelect = document.getElementById('region-select');
+        const monthSelect = document.getElementById('month-select');
+        const calendarContainer = document.getElementById('calendar-container');
+        let allEvents = [];
+        const monthNames = ["January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+        ];
+        const daysOfWeek = ["일", "월", "화", "수", "목", "금", "토"];
+
+        // 월 선택 옵션 생성
+        const currentMonth = new Date().getMonth();
+        for (let i = 0; i < 12; i++) {
+            const option = document.createElement('option');
+            option.value = i;
+            option.textContent = `${i + 1}월`;
+            if (i === currentMonth) {
+                option.selected = true;
+            }
+            monthSelect.appendChild(option);
+        }
+
+        async function loadCSV(filePath) {
+            try {
+                const response = await fetch(filePath);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const csvText = await response.text();
+                return csvText;
+            } catch (error) {
+                console.error('CSV 파일 로드 오류:', error);
+                return null;
+            }
+        }
+
+        function parseCSV(csvText) {
+            const lines = csvText.trim().split('\n').slice(1); // 헤더 제외
+            return lines.map(line => {
+                const [지역, 유형, 시작날짜, 종료날짜, 시작요일, 종료요일, 시작시간, 종료시간, 행사제목, 행사내용, 장소, 대상, 기관, 연락처] = line.split(',');
+                return { 지역, 유형, 시작날짜, 종료날짜, 시작요일, 종료요일, 시작시간, 종료시간, 행사제목, 행사내용, 장소, 대상, 기관, 연락처 };
+            });
+        }
+
+        function generateCalendar(year, month, events, selectedRegion) {
+            const firstDayOfMonth = new Date(year, month, 1);
+            const lastDayOfMonth = new Date(year, month + 1, 0);
+            const daysInMonth = lastDayOfMonth.getDate();
+            const startDayOfWeek = firstDayOfMonth.getDay(); // 0 (Sunday) to 6 (Saturday)
+
+            const calendarTable = document.createElement('table');
+            calendarTable.className = 'calendar';
+            let headerRow = calendarTable.createTHead().insertRow();
+            daysOfWeek.forEach(day => {
+                const th = document.createElement('th');
+                th.textContent = day;
+                headerRow.appendChild(th);
+            });
+
+            let dayCounter = 1;
+            for (let i = 0; i < 6; i++) { // 최대 6주
+                const row = calendarTable.insertRow();
+                for (let j = 0; j < 7; j++) {
+                    const cell = row.insertCell();
+                    if (i === 0 && j < startDayOfWeek) {
+                        // 이전 달의 날짜
+                    } else if (dayCounter > daysInMonth) {
+                        // 다음 달의 날짜
+                    } else {
+                        cell.textContent = dayCounter;
+                        const currentDate = new Date(year, month, dayCounter);
+                        const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayCounter).padStart(2, '0')}`;
+
+                        if (currentDate.toDateString() === new Date().toDateString()) {
+                            cell.classList.add('today');
+                        }
+
+                        const eventsOnThisDay = events
+                            .filter(event => {
+                                const isSameDate = event.시작날짜 === formattedDate;
+                                const isCorrectRegion = selectedRegion === '전국' || event.지역.includes(selectedRegion);
+                                return isSameDate && isCorrectRegion;
+                            })
+                            .map(event => `<span class="event-title" data-details='${JSON.stringify(event)}'>${event.행사제목.substring(0, 12)}</span>`);
+
+                        cell.innerHTML += '<br>' + eventsOnThisDay.join('');
+                        dayCounter++;
+                    }
+                }
+                if (dayCounter > daysInMonth && i >= 1) { // 이번 달 이후 빈 행 제거
+                    break;
+                }
+            }
+
+            // 이벤트 제목 클릭 시 상세 정보 표시
+            calendarTable.addEventListener('click', function(event) {
+                if (event.target.classList.contains('event-title')) {
+                    const eventDetails = JSON.parse(event.target.dataset.details);
+                    const detailsWindow = window.open('', '_blank');
+                    detailsWindow.document.write(`
+                        <html>
+                        <head><title>${eventDetails.행사제목}</title><meta charset="UTF-8"></head>
+                        <body>
+                            <h1>${eventDetails.행사제목}</h1>
+                            <p><strong>지역:</strong> ${eventDetails.지역}</p>
+                            <p><strong>유형:</strong> ${eventDetails.유형}</p>
+                            <p><strong>시작 날짜:</strong> ${eventDetails.시작날짜}</p>
+                            ${eventDetails.종료날짜 ? `<p><strong>종료 날짜:</strong> ${eventDetails.종료날짜}</p>` : ''}
+                            ${eventDetails.시작요일 ? `<p><strong>시작 요일:</strong> ${eventDetails.시작요일}</p>` : ''}
+                            ${eventDetails.종료요일 ? `<p><strong>종료 요일:</strong> ${eventDetails.종료요일}</p>` : ''}
+                            ${eventDetails.시작시간 ? `<p><strong>시작 시간:</strong> ${eventDetails.시작시간}시</p>` : ''}
+                            ${eventDetails.종료시간 ? `<p><strong>종료 시간:</strong> ${eventDetails.종료시간}시</p>` : ''}
+                            <p><strong>내용:</strong> ${eventDetails.행사내용 || '상세 내용 없음'}</p>
+                            <p><strong>장소:</strong> ${eventDetails.장소}</p>
+                            ${eventDetails.대상 ? `<p><strong>대상:</strong> ${eventDetails.대상}</p>` : ''}
+                            ${eventDetails.기관 ? `<p><strong>기관:</strong> ${eventDetails.기관}</p>` : ''}
+                            ${eventDetails.연락처 ? `<p><strong>연락처:</strong> ${eventDetails.연락처}</p>` : ''}
+                        </body>
+                        </html>
+                    `);
+                    detailsWindow.document.close();
+                }
+            });
+
+            return calendarTable;
+        }
+
+        async function main() {
+            const csvFilePath = 'p1.csv';
+            const csvData = await loadCSV(csvFilePath);
+            if (csvData) {
+                allEvents = parseCSV(csvData);
+                const currentYear = new Date().getFullYear();
+                const currentMonthIndex = parseInt(monthSelect.value);
+                const selectedRegion = regionSelect.value;
+                const calendar = generateCalendar(currentYear, currentMonthIndex, allEvents, selectedRegion);
+                calendarContainer.innerHTML = '';
+                calendarContainer.appendChild(calendar);
+            }
+        }
+
+        // 초기 로드 및 이벤트 핸들러
+        main();
+
+        monthSelect.addEventListener('change', () => {
+            const currentYear = new Date().getFullYear();
+            const selectedMonth = parseInt(monthSelect.value);
+            const selectedRegion = regionSelect.value;
+            const calendar = generateCalendar(currentYear, selectedMonth, allEvents, selectedRegion);
+            calendarContainer.innerHTML = '';
+            calendarContainer.appendChild(calendar);
+        });
+
+        regionSelect.addEventListener('change', () => {
+            const currentYear = new Date().getFullYear();
+            const selectedMonth = parseInt(monthSelect.value);
+            const selectedRegion = regionSelect.value;
+            const calendar = generateCalendar(currentYear, selectedMonth, allEvents, selectedRegion);
+            calendarContainer.innerHTML = '';
+            calendarContainer.appendChild(calendar);
+        });
+    </script>
+
+</body>
+</html>
