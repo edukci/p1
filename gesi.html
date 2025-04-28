@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>게시판</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .comment-section {
+            margin-top: 20px;
+            border: 1px solid #eee;
+            padding: 10px;
+        }
+        .reply-section {
+            margin-left: 20px;
+            border-left: 2px solid #ccc;
+            padding-left: 10px;
+            margin-top: 10px;
+        }
+        .edit-button {
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>게시판</h1>
+    <table id="post-table">
+        <thead>
+            <tr>
+                <th>제목</th>
+                <th>글 내용</th>
+                <th>댓글</th>
+                <th>답변</th>
+                <th>수정</th>
+            </tr>
+        </thead>
+        <tbody>
+            </tbody>
+    </table>
+
+    <script>
+        function loadPosts() {
+            fetch('gesi.csv')
+                .then(response => response.text())
+                .then(data => {
+                    const lines = data.trim().split('\n');
+                    const tbody = document.querySelector('#post-table tbody');
+                    tbody.innerHTML = ''; // 기존 목록 비우기
+
+                    lines.forEach(line => {
+                        const [title, content, comment, reply] = line.split(',');
+                        const row = tbody.insertRow();
+
+                        let cell = row.insertCell();
+                        cell.textContent = title;
+
+                        cell = row.insertCell();
+                        cell.textContent = content;
+
+                        cell = row.insertCell();
+                        if (comment) {
+                            const commentSection = document.createElement('div');
+                            commentSection.classList.add('comment-section');
+                            commentSection.textContent = comment;
+                            cell.appendChild(commentSection);
+                        }
+
+                        cell = row.insertCell();
+                        if (reply) {
+                            const replySection = document.createElement('div');
+                            replySection.classList.add('reply-section');
+                            replySection.textContent = reply;
+                            cell.appendChild(replySection);
+                        }
+
+                        cell = row.insertCell();
+                        const editButton = document.createElement('button');
+                        editButton.textContent = '수정';
+                        editButton.classList.add('edit-button');
+                        // 수정 버튼에 대한 JavaScript 기능은 추가적인 구현이 필요합니다.
+                        cell.appendChild(editButton);
+                    });
+                })
+                .catch(error => {
+                    console.error('CSV 파일을 불러오는 중 오류가 발생했습니다:', error);
+                });
+        }
+
+        // 페이지 로드 시 게시글 목록을 불러옵니다.
+        window.onload = loadPosts;
+    </script>
+</body>
+</html>
