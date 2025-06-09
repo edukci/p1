@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tour Information Viewer (Web)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden; /* Prevent body scroll */
+        }
+
+        #left-frame {
+            flex: 2; /* 20% width */
+            padding: 15px;
+            background-color: #f4f4f4;
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto; /* Scroll for left frame content if needed */
+        }
+
+        #right-frame {
+            flex: 8; /* 80% width */
+            background-color: #fff;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .input-group {
+            margin-bottom: 10px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .input-group select,
+        .input-group button {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            box-sizing: border-box;
+        }
+
+        #search-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+
+        #search-button:hover {
+            background-color: #0056b3;
+        }
+
+        #info-display {
+            flex-grow: 1; /* Take remaining space */
+            margin-top: 10px;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+            overflow-y: auto; /* Enable scroll for info */
+        }
+
+        #info-display div {
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+        
+        #info-display button {
+            display: block;
+            width: 100%;
+            padding: 8px;
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        #info-display button:hover {
+            background-color: #5a6268;
+        }
+
+        #navigation-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+        }
+
+        #navigation-buttons button {
+            flex: 1;
+            padding: 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 0 5px;
+        }
+
+        #navigation-buttons button:hover {
+            background-color: #218838;
+        }
+
+        #navigation-buttons button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        #detail-webview {
+            width: 100%;
+            height: 100%;
+            border: none; /* Remove iframe border */
+        }
+    </style>
+</head>
+<body>
+
+    <div id="left-frame">
+        <div class="input-group">
+            <label for="type-select">종류:</label>
+            <select id="type-select">
+                <option value="전체">전체</option>
+                <option value="축제">축제</option>
+                <option value="공연">공연</option>
+                <option value="전시">전시</option>
+                <option value="여행지">여행지</option>
+                <option value="숙박">숙박</option>
+                </select>
+        </div>
+
+        <div class="input-group">
+            <label for="r1-select">지역1:</label>
+            <select id="r1-select"></select>
+        </div>
+
+        <div class="input-group">
+            <label for="r2-select">지역2:</label>
+            <select id="r2-select"></select>
+        </div>
+
+        <button id="search-button">조회하기</button>
+
+        <div id="info-display">
+            <div id="title-info">제목: N/A</div>
+            <div id="feature-info">특징: N/A</div>
+            <div id="season-info">성수기: N/A</div>
+            <button id="location-button">위치 보기 (Google Maps)</button>
+            <div id="time-info">운영시간: N/A</div>
+            <div id="price-info">입장료: N/A</div>
+            <div id="organizer-info">주최기관: N/A</div>
+            <div id="contact-info">연락처: N/A</div>
+        </div>
+
+        <div id="navigation-buttons">
+            <button id="prev-button">&lt; 이전 (0)</button>
+            <button id="next-button">다음 (0) &gt;</button>
+        </div>
+    </div>
+
+    <div id="right-frame">
+        <iframe id="detail-webview" srcdoc="<html><body><p>상세 설명 링크가 없습니다.</p></body></html>"></iframe>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script>
+        let fullData = [];
+        let filteredData = [];
+        let r1Data = [];
+        let r2Data = [];
+        let currentIndex = 0;
+
+        const typeSelect = document.getElementById('type-select');
+        const r1Select = document.getElementById('r1-select');
+        const r2Select = document.getElementById('r2-select');
+        const searchButton = document.getElementById('search-button');
+        const titleInfo = document.getElementById('title-info');
+        const featureInfo = document.getElementById('feature-info');
+        const seasonInfo = document.getElementById('season-info');
+        const locationButton = document.getElementById('location-button');
+        const timeInfo = document.getElementById('time-info');
+        const priceInfo = document.getElementById('price-info');
+        const organizerInfo = document.getElementById('organizer-info');
+        const contactInfo = document.getElementById('contact-info');
+        const detailWebview = document.getElementById('detail-webview');
+        const prevButton = document.getElementById('prev-button');
+        const nextButton = document.getElementById('next-button');
+
+        // Function to load CSV data
+        async function loadCSV(filePath) {
+            try {
+                const response = await fetch(filePath);
+                if (!response.ok) {
+                    throw new Error(`Failed to load ${filePath}: ${response.statusText}`);
+                }
+                const text = await response.text();
+                // PapaParse to handle CSV parsing, including BOM
+                return new Promise((resolve) => {
+                    PapaParse.parse(text, {
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: function(results) {
+                            console.log(`CSV file '${filePath}' loaded successfully.`, results.data);
+                            resolve(results.data);
+                        },
+                        error: function(err) {
+                            console.error(`Error parsing ${filePath}:`, err);
+                            resolve([]); // Return empty array on parse error
+                        }
+                    });
+                });
+            } catch (error) {
+                console.error(`Error fetching ${filePath}:`, error);
+                return []; // Return empty array on fetch error
+            }
+        }
+
+        // Initialize combo boxes and load data
+        async function initApp() {
+            fullData = await loadCSV('tour.csv');
+            r1Data = await loadCSV('r11.csv');
+            r2Data = await loadCSV('r22.csv');
+
+            // Populate r1 combo box
+            r1Select.innerHTML = '<option value="전체">전체</option>';
+            if (r1Data.length > 0) {
+                r1Data.forEach(row => {
+                    r1Select.innerHTML += `<option value="${row.r1_name}">${row.r1_name}</option>`;
+                });
+            }
+
+            // Set up event listeners
+            r1Select.addEventListener('change', updateR2Combo);
+            searchButton.addEventListener('click', applyFilter);
+            locationButton.addEventListener('click', openGoogleMaps);
+            prevButton.addEventListener('click', showPrevious);
+            nextButton.addEventListener('click', showNext);
+
+            updateR2Combo(); // Initial population of r2 combo box
+            applyFilter(); // Apply initial filter (show all data)
+        }
+
+        function updateR2Combo() {
+            r2Select.innerHTML = '<option value="전체">전체</option>';
+            const selectedR1Name = r1Select.value;
+
+            if (selectedR1Name === "전체") {
+                if (r2Data.length > 0) {
+                    const allR2Names = [...new Set(r2Data.map(row => row.r2_name))].sort();
+                    allR2Names.forEach(name => {
+                        r2Select.innerHTML += `<option value="${name}">${name}</option>`;
+                    });
+                }
+            } else {
+                const selectedR1 = r1Data.find(row => row.r1_name === selectedR1Name);
+                if (selectedR1) {
+                    const selectedR1Id = selectedR1.r1_id;
+                    const filteredR2 = r2Data.filter(row => row['r1_id (FK)'] === selectedR1Id);
+                    filteredR2.forEach(row => {
+                        r2Select.innerHTML += `<option value="${row.r2_name}">${row.r2_name}</option>`;
+                    });
+                }
+            }
+        }
+
+        function applyFilter() {
+            const selectedType = typeSelect.value;
+            const selectedR1 = r1Select.value;
+            const selectedR2 = r2Select.value;
+
+            filteredData = fullData.filter(item => {
+                const matchesType = (selectedType === "전체" || item.종류 === selectedType);
+                const matchesR1 = (selectedR1 === "전체" || item.지역1 === selectedR1);
+                const matchesR2 = (selectedR2 === "전체" || item.지역2 === selectedR2);
+                return matchesType && matchesR1 && matchesR2;
+            });
+
+            currentIndex = 0; // Reset index after filtering
+            displayData();
+        }
+
+        function displayData() {
+            const totalItems = filteredData.length;
+
+            if (totalItems > 0 && currentIndex >= 0 && currentIndex < totalItems) {
+                const item = filteredData[currentIndex];
+                titleInfo.textContent = `제목: ${item.제목 || 'N/A'}`;
+                featureInfo.textContent = `특징: ${item.특징 || 'N/A'}`;
+                seasonInfo.textContent = `성수기: ${item.성수기 || 'N/A'}`;
+                timeInfo.textContent = `운영시간: ${item.운영시간 || 'N/A'}`;
+                priceInfo.textContent = `입장료: ${item.입장료 || 'N/A'}`;
+                organizerInfo.textContent = `주최기관: ${item.주최기관 || 'N/A'}`;
+                contactInfo.textContent = `연락처: ${item.연락처 || 'N/A'}`;
+
+                const detailLink = item.상세설명 || '';
+                if (detailLink) {
+                    detailWebview.src = detailLink;
+                } else {
+                    detailWebview.srcdoc = "<html><body><p>상세 설명 링크가 없습니다.</p></body></html>";
+                }
+            } else {
+                clearDisplay();
+            }
+
+            // Update navigation button text and state
+            const prevCount = currentIndex;
+            const nextCount = totalItems - (currentIndex + 1);
+
+            prevButton.textContent = `< 이전 (${prev_count})`;
+            nextButton.textContent = `다음 (${next_count}) >`;
+
+            prevButton.disabled = prevCount === 0;
+            nextButton.disabled = nextCount === 0;
+            
+            if (totalItems === 0) { // If no filtered results, disable both
+                prevButton.disabled = true;
+                nextButton.disabled = true;
+            }
+        }
+
+        function clearDisplay() {
+            titleInfo.textContent = `제목: N/A`;
+            featureInfo.textContent = `특징: N/A`;
+            seasonInfo.textContent = `성수기: N/A`;
+            timeInfo.textContent = `운영시간: N/A`;
+            priceInfo.textContent = `입장료: N/A`;
+            organizerInfo.textContent = `주최기관: N/A`;
+            contactInfo.textContent = `연락처: N/A`;
+            detailWebview.srcdoc = "<html><body><p>조회된 데이터가 없습니다.</p></body></html>";
+            
+            prevButton.textContent = `< 이전 (0)`;
+            nextButton.textContent = `다음 (0) >`;
+            prevButton.disabled = true;
+            nextButton.disabled = true;
+        }
+
+        function openGoogleMaps() {
+            if (filteredData.length > 0 && currentIndex >= 0 && currentIndex < filteredData.length) {
+                const locationLink = filteredData[currentIndex].위치 || '';
+                if (locationLink) {
+                    // Check if the URL is valid before opening
+                    try {
+                        new URL(locationLink); // Validate URL
+                        window.open(locationLink, '_blank');
+                    } catch (e) {
+                        console.error("Invalid Google Maps URL:", locationLink);
+                    }
+                } else {
+                    console.log("유효한 구글 지도 링크가 없습니다.");
+                }
+            } else {
+                console.log("표시할 데이터가 없습니다.");
+            }
+        }
+
+        function showPrevious() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                displayData();
+            }
+        }
+
+        function showNext() {
+            if (currentIndex < filteredData.length - 1) {
+                currentIndex++;
+                displayData();
+            }
+        }
+
+        // Initialize the application when the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
