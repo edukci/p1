@@ -193,7 +193,7 @@
         const timeInfo = document.getElementById('time-info');
         const priceInfo = document.getElementById('price-info');
         const organizerInfo = document.getElementById('organizer-info');
-        const contactInfo = document.getElementById('contact-info');
+        const contactInfo = document = document.getElementById('contact-info');
         const detailWebview = document.getElementById('detail-webview');
         const prevButton = document.getElementById('prev-button');
         const nextButton = document.getElementById('next-button');
@@ -229,15 +229,19 @@
 
         // Initialize combo boxes and load data
         async function initApp() {
-            fullData = await loadCSV('tour.csv');
-            r1Data = await loadCSV('r11.csv');
-            r2Data = await loadCSV('r22.csv');
+            // 변경된 부분: GitHub Raw 파일 URL 사용
+            fullData = await loadCSV('https://raw.githubusercontent.com/edukci/p1/main/tour.csv');
+            r1Data = await loadCSV('https://raw.githubusercontent.com/edukci/p1/main/r11.csv');
+            r2Data = await loadCSV('https://raw.githubusercontent.com/edukci/p1/main/r22.csv');
 
             // Populate r1 combo box
             r1Select.innerHTML = '<option value="전체">전체</option>';
             if (r1Data.length > 0) {
+                // Ensure r1_name exists and is used
                 r1Data.forEach(row => {
-                    r1Select.innerHTML += `<option value="${row.r1_name}">${row.r1_name}</option>`;
+                    if (row.r1_name) {
+                        r1Select.innerHTML += `<option value="${row.r1_name}">${row.r1_name}</option>`;
+                    }
                 });
             }
 
@@ -258,16 +262,18 @@
 
             if (selectedR1Name === "전체") {
                 if (r2Data.length > 0) {
-                    const allR2Names = [...new Set(r2Data.map(row => row.r2_name))].sort();
+                    // Filter out rows where r2_name is undefined or empty
+                    const allR2Names = [...new Set(r2Data.filter(row => row.r2_name).map(row => row.r2_name))].sort();
                     allR2Names.forEach(name => {
                         r2Select.innerHTML += `<option value="${name}">${name}</option>`;
                     });
                 }
             } else {
                 const selectedR1 = r1Data.find(row => row.r1_name === selectedR1Name);
-                if (selectedR1) {
+                if (selectedR1 && selectedR1.r1_id) { // Ensure r1_id exists
                     const selectedR1Id = selectedR1.r1_id;
-                    const filteredR2 = r2Data.filter(row => row['r1_id (FK)'] === selectedR1Id);
+                    // Filter for r1_id (FK) and ensure r2_name exists
+                    const filteredR2 = r2Data.filter(row => row['r1_id (FK)'] === selectedR1Id && row.r2_name);
                     filteredR2.forEach(row => {
                         r2Select.innerHTML += `<option value="${row.r2_name}">${row.r2_name}</option>`;
                     });
@@ -293,7 +299,7 @@
 
         function displayData() {
             const totalItems = filteredData.length;
-
+            
             if (totalItems > 0 && currentIndex >= 0 && currentIndex < totalItems) {
                 const item = filteredData[currentIndex];
                 titleInfo.textContent = `제목: ${item.제목 || 'N/A'}`;
@@ -350,7 +356,6 @@
             if (filteredData.length > 0 && currentIndex >= 0 && currentIndex < filteredData.length) {
                 const locationLink = filteredData[currentIndex].위치 || '';
                 if (locationLink) {
-                    // Check if the URL is valid before opening
                     try {
                         new URL(locationLink); // Validate URL
                         window.open(locationLink, '_blank');
